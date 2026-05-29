@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>育成レポート - {{ result.staff_name }}</title>
+  <link rel="stylesheet" href="/static/style.css?v=5">
+</head>
+<body class="report-page">
+  <header class="report-topbar">
+    <div class="report-topbar-inner">
+      <a href="/" class="back-demo">← デモトップ</a>
+      <span class="brand-mark small">Studio Coach</span>
+    </div>
+  </header>
+
+  <main class="container report">
+    <section class="manager-hero card">
+      <div class="manager-hero-top">
+        <div>
+          <p class="eyebrow">カウンセリング育成レポート</p>
+          <h1>{{ result.staff_name }} <span class="sub">/ {{ result.session_date }}</span></h1>
+        </div>
+        <div class="score-badge {{ label_class }}">
+          <span class="score-badge-num">{{ result.overall_score }}</span>
+          <span class="score-badge-label">{{ result.overall_label }}</span>
+        </div>
+      </div>
+      <p class="manager-summary">{{ result.manager_summary }}</p>
+    </section>
+
+    <section class="card assessment-card">
+      <h2>総合評価</h2>
+      <div class="assessment-grid">
+        <div class="assessment-block">
+          <h3>今のスタッフの状態</h3>
+          <p>{{ result.overall_assessment.staff_status or result.overall_comment }}</p>
+        </div>
+        <div class="assessment-block highlight-warn">
+          <h3>一番の課題</h3>
+          <p>{{ result.overall_assessment.top_issue }}</p>
+        </div>
+        <div class="assessment-block highlight-action">
+          <h3>次回最優先で改善すること</h3>
+          <p>{{ result.overall_assessment.priority_improvement }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="line-cta card">
+      <div class="line-cta-head">
+        <h2>スタッフへ送るフィードバック</h2>
+        <p>以下の文面をLINEにそのまま貼り付けて共有できます</p>
+      </div>
+      <div class="line-preview">{{ result.staff_feedback }}</div>
+      <div class="line-actions-row">
+        <button type="button" class="btn primary" id="copy-line-btn">LINE用テキストをコピー</button>
+        {% if report_id %}
+        <a class="btn ghost" href="/reports/{{ report_id }}/line.txt" download>テキストをダウンロード</a>
+        {% endif %}
+      </div>
+      <p class="copy-status" id="copy-status"></p>
+    </section>
+
+    {% for category in categories %}
+    <section class="card eval-category">
+      <h2>{{ category.name }}</h2>
+      {% for item in category.evaluations %}
+      <div class="eval-item verdict-{{ verdict_class[item.verdict] }}">
+        <div class="eval-item-head">
+          <span class="verdict-badge verdict-{{ verdict_class[item.verdict] }}">{{ item.verdict }}</span>
+          <h3>{{ item.label }}</h3>
+        </div>
+        <p class="eval-comment">{{ item.comment }}</p>
+        {% if item.quotes %}
+        <div class="eval-quotes">
+          <p class="eval-quotes-label">根拠（発言引用）</p>
+          {% for q in item.quotes %}
+          <blockquote class="quote">
+            {% if q.timestamp %}<span class="quote-ts">{{ q.timestamp }}</span>{% endif %}
+            「{{ q.text }}」
+          </blockquote>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if item.next_action %}
+        <p class="eval-action"><strong>次回アクション:</strong> {{ item.next_action }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </section>
+    {% endfor %}
+
+    {% if result.improvement_points %}
+    <section class="card improve-hero">
+      <h2>次に伸ばすポイント（まとめ）</h2>
+      <p class="section-desc">スタッフが落ち込まないよう、前向きな表現でまとめています</p>
+      {% for ip in result.improvement_points %}
+      <div class="improve-card">
+        <h3>{{ ip.title }}</h3>
+        <p>{{ ip.body }}</p>
+      </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>カテゴリスコア</h2>
+      {% if weakest %}
+      <p class="section-desc">特にフォロー: <strong>{{ weakest.name }}</strong>（{{ weakest.score }}点）</p>
+      {% endif %}
+      <ul class="score-list">
+        {% for s in result.scores %}
+        <li class="score-row">
+          <div class="score-label">
+            <span>{{ s.name }}</span>
+            <strong>{{ s.score }}点</strong>
+          </div>
+          <div class="score-bar-track">
+            <div class="score-bar-fill" style="width: {{ s.score }}%"></div>
+          </div>
+          <p class="score-comment">{{ s.comment }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {% if result.good_points %}
+    <section class="card good-section">
+      <h2>良かった点</h2>
+      {% for gp in result.good_points %}
+      <div class="feedback-block good">
+        <h3>{{ gp.title }}</h3>
+        <p>{{ gp.body }}</p>
+        {% for q in gp.quotes %}
+        <blockquote class="quote">{% if q.timestamp %}<span class="quote-ts">{{ q.timestamp }}</span>{% endif %}「{{ q.text }}」</blockquote>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if result.next_focus %}
+    <section class="card">
+      <h2>次回セッションで意識すること</h2>
+      <ul class="focus-list">
+        {% for item in result.next_focus %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <details class="card transcript-box">
+      <summary>文字起こし（参照）</summary>
+      <pre>{{ result.transcript }}</pre>
+    </details>
+  </main>
+
+  <textarea id="line-text-source" hidden>{{ result.line_text }}</textarea>
+  <script>
+    document.getElementById('copy-line-btn')?.addEventListener('click', async () => {
+      const source = document.getElementById('line-text-source');
+      const text = source?.value || '';
+      const status = document.getElementById('copy-status');
+      const done = () => {
+        status.textContent = 'コピーしました。LINEを開いて貼り付けてください。';
+      };
+      const fail = () => {
+        if (source) {
+          source.hidden = false;
+          source.style.position = 'fixed';
+          source.style.left = '-9999px';
+          source.select();
+          source.setSelectionRange(0, text.length);
+        }
+        status.textContent = '長押しで「すべて選択」→「コピー」してください（iPhone Safari）。';
+      };
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          done();
+          return;
+        }
+      } catch (e) {
+        /* fallback below */
+      }
+      try {
+        source.hidden = false;
+        source.select();
+        source.setSelectionRange(0, text.length);
+        const ok = document.execCommand('copy');
+        source.hidden = true;
+        if (ok) done();
+        else fail();
+      } catch (e) {
+        fail();
+      }
+    });
+  </script>
+</body>
+</html>

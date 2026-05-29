@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>カウンセリング育成サポート</title>
+  <link rel="stylesheet" href="/static/style.css?v=5">
+</head>
+<body class="demo-page">
+  <header class="demo-header">
+    <div class="demo-header-inner">
+      <span class="brand-mark">Studio Coach</span>
+      <span class="brand-tag">デモ版</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="demo-hero">
+      <p class="eyebrow">ピラティススタジオ向け 教育・品質管理</p>
+      <h1>カウンセリング録音から<br>育成フィードバックまで、<strong>5分で完了</strong></h1>
+      <p class="lead">
+        初回カウンセリングの録音をアップロードするだけで、
+        マネージャーがそのままスタッフへ共有できるフィードバックを自動生成します。
+      </p>
+    </section>
+
+    <section class="flow-card card">
+      <h2>ご利用の流れ</h2>
+      <ol class="flow-steps">
+        <li><span class="step-num">1</span><span class="step-text">音声アップロード</span></li>
+        <li><span class="step-num">2</span><span class="step-text">自動文字起こし</span></li>
+        <li><span class="step-num">3</span><span class="step-text">AI評価</span></li>
+        <li><span class="step-num">4</span><span class="step-text">LINE用文面生成</span></li>
+        <li><span class="step-num">5</span><span class="step-text">レポート表示</span></li>
+      </ol>
+    </section>
+
+    {% if not has_api_key %}
+    <section class="alert-card card">
+      <strong>APIキー未設定</strong>
+      <p>.env に OPENAI_API_KEY を設定してサーバーを再起動してください。</p>
+    </section>
+    {% endif %}
+
+    <section class="upload-card card" id="upload-section">
+      <h2>カウンセリング録音をアップロード</h2>
+      <p class="hint">m4a / aac / mp3 対応 ・ iPhoneのボイスメモもOK ・ 処理1〜5分</p>
+
+      <form id="upload-form" enctype="multipart/form-data" class="form-grid">
+        <label>
+          スタッフ名
+          <input type="text" name="staff_name" placeholder="例: 田中" required>
+        </label>
+        <label>
+          セッション日
+          <input type="date" name="session_date" value="{{ today }}" required>
+        </label>
+        <label class="full file-drop">
+          録音ファイル
+          <input type="file" name="audio" id="audio-input" accept="audio/*,.m4a,.aac,.mp4,.mp3,.wav,audio/mp4,audio/x-m4a,audio/aac" required>
+          <span class="file-hint" id="file-hint">タップして録音ファイルを選択（ボイスメモ可）</span>
+        </label>
+        <button type="submit" class="btn primary full-width" id="submit-btn">
+          フィードバックを生成する
+        </button>
+      </form>
+    </section>
+
+    <section class="error-panel card" id="error-panel" hidden>
+      <h2>処理できませんでした</h2>
+      <p id="error-text"></p>
+      <button type="button" class="btn primary" id="retry-btn">もう一度アップロードする</button>
+    </section>
+
+    <section class="value-grid">
+      <div class="card value-item">
+        <h3>マネージャー向け</h3>
+        <p>改善ポイントが一目で分かり、1on1の準備時間を大幅に短縮。</p>
+      </div>
+      <div class="card value-item">
+        <h3>スタッフ向け</h3>
+        <p>否定ではなく「伸ばしどころ」を伝える、育成トーンのフィードバック。</p>
+      </div>
+      <div class="card value-item">
+        <h3>現場運用</h3>
+        <p>LINEにそのまま送れる文面。再研修・品質管理までつながる設計。</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="processing-overlay" id="processing-overlay" hidden>
+    <div class="processing-card">
+      <h2>フィードバックを作成中</h2>
+      <p class="processing-sub" id="step-message">ファイルをアップロードしています…</p>
+      <p class="processing-note">処理中です。そのままお待ちください（文字起こしは数分かかる場合があります）</p>
+      <p class="processing-warning" id="stall-warning" hidden>
+        処理に時間がかかっています。ファイル形式や容量を確認してください。
+      </p>
+      <ol class="processing-steps" id="processing-steps">
+        <li data-step="1">① アップロード</li>
+        <li data-step="2">② 文字起こし</li>
+        <li data-step="3">③ AI評価</li>
+        <li data-step="4">④ レポート生成</li>
+        <li data-step="5">⑤ 完了</li>
+      </ol>
+      <div class="processing-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <script src="/static/demo.js?v=5"></script>
+</body>
+</html>
