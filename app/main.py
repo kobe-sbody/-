@@ -17,6 +17,7 @@ from app.feedback_history import (
     get_feedback_history,
     is_configured as supabase_configured,
     list_feedback_history,
+    log_env_diagnostics,
 )
 from app.jobs import JobStep, jobs, run_pipeline
 from app.logger import logger
@@ -66,6 +67,8 @@ async def startup() -> None:
         logger.info("=== Mac === http://127.0.0.1:%s", port)
     if env == "Render":
         logger.info("=== 注意 === 音声・レポートは /tmp 保存（再起動で消えます）")
+    logger.info("=== Supabase 環境変数 ===")
+    log_env_diagnostics()
     logger.info(
         "=== Supabase === %s",
         "OK（添削履歴あり）" if supabase_configured() else "未設定（履歴保存なし）",

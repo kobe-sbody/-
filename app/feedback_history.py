@@ -12,13 +12,52 @@ from app.models import FeedbackHistoryDetail, FeedbackHistoryItem
 _client = None
 _client_checked = False
 
+ENV_SUPABASE_URL = "SUPABASE_URL"
+ENV_SUPABASE_SERVICE_ROLE_KEY = "SUPABASE_SERVICE_ROLE_KEY"
+ENV_SUPABASE_KEY_FALLBACK = "SUPABASE_KEY"
+
+
+def _read_env(name: str) -> str:
+    return (os.getenv(name) or "").strip()
+
+
+def _env_status(name: str) -> str:
+    """環境変数の有無を OK / 空 / 未設定 で返す（値は出さない）。"""
+    if name not in os.environ:
+        return "未設定"
+    if not _read_env(name):
+        return "空"
+    return "OK"
+
+
+def get_env_diagnostics() -> dict[str, str]:
+    """起動ログ用。キー値そのものは含めない。"""
+    service_key_status = _env_status(ENV_SUPABASE_SERVICE_ROLE_KEY)
+    if service_key_status == "未設定" and _env_status(ENV_SUPABASE_KEY_FALLBACK) == "OK":
+        service_key_status = f"未設定（{ENV_SUPABASE_KEY_FALLBACK} は OK）"
+    return {
+        ENV_SUPABASE_URL: _env_status(ENV_SUPABASE_URL),
+        ENV_SUPABASE_SERVICE_ROLE_KEY: service_key_status,
+    }
+
+
+def log_env_diagnostics() -> None:
+    diag = get_env_diagnostics()
+    logger.info("%s: %s", ENV_SUPABASE_URL, diag[ENV_SUPABASE_URL])
+    logger.info("%s: %s", ENV_SUPABASE_SERVICE_ROLE_KEY, diag[ENV_SUPABASE_SERVICE_ROLE_KEY])
+    related = sorted(k for k in os.environ if "SUPABASE" in k.upper())
+    if related:
+        logger.info("SUPABASE関連の環境変数名: %s", ", ".join(related))
+    else:
+        logger.info("SUPABASE関連の環境変数名: なし")
+
 
 def is_configured() -> bool:
-    return bool(os.getenv("SUPABASE_URL") and _get_supabase_key())
+    return bool(_read_env(ENV_SUPABASE_URL) and _get_supabase_key())
 
 
 def _get_supabase_key() -> str:
-    return os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or ""
+    return _read_env(ENV_SUPABASE_SERVICE_ROLE_KEY) or _read_env(ENV_SUPABASE_KEY_FALLBACK)
 
 
 def _get_client():
@@ -26,7 +65,7 @@ def _get_client():
     if _client_checked:
         return _client
     _client_checked = True
-    url = os.getenv("SUPABASE_URL")
+    url = _read_env(ENV_SUPABASE_URL)
     key = _get_supabase_key()
     if not url or not key:
         logger.info("Supabase未設定 — 添削履歴の保存・閲覧は無効")
