@@ -30,5 +30,5 @@
     ]
   },
   "improvement_intro": "改善点は{count}つです。",
-  "improvement_format": "結論→理由→具体例を1つの自然な段落にまとめる（実際のセリフまで）"
+  "improvement_format": "改善点→なぜ重要か→お客様心理→質問の流れと狙い→会話例（番号見出しなしの自然な段落）"
 }
