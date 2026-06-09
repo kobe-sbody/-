@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+import base64
+import json
 import os
 
 from app.logger import logger
@@ -41,10 +43,30 @@ def get_env_diagnostics() -> dict[str, str]:
     }
 
 
+def _jwt_role(key: str) -> str:
+    """JWTの role クレームを返す（キー本体はログに出さない）。"""
+    try:
+        payload = key.split(".")[1]
+        padded = payload + "=" * (-len(payload) % 4)
+        data = json.loads(base64.urlsafe_b64decode(padded))
+        return str(data.get("role", "unknown"))
+    except Exception:
+        return "unknown"
+
+
 def log_env_diagnostics() -> None:
     diag = get_env_diagnostics()
     logger.info("%s: %s", ENV_SUPABASE_URL, diag[ENV_SUPABASE_URL])
     logger.info("%s: %s", ENV_SUPABASE_SERVICE_ROLE_KEY, diag[ENV_SUPABASE_SERVICE_ROLE_KEY])
+    key = _get_supabase_key()
+    if key:
+        role = _jwt_role(key)
+        logger.info("SUPABASE_KEY_ROLE: %s", role)
+        if role == "anon":
+            logger.warning(
+                "SUPABASE_SERVICE_ROLE_KEY に anon キーが設定されています。"
+                "service_role キーに差し替えてください。"
+            )
     related = sorted(k for k in os.environ if "SUPABASE" in k.upper())
     if related:
         logger.info("SUPABASE関連の環境変数名: %s", ", ".join(related))
@@ -89,24 +111,42 @@ def save_feedback_history(
     feedback: str,
 ) -> str | None:
     """添削結果を保存する。失敗してもパイプラインは止めない。"""
+    file_name = audio_file_name or "recording.m4a"
+    logger.info("添削履歴保存開始 staff=%s file=%s", staff_name, file_name)
+
+    if not is_configured():
+        logger.error("添削履歴保存失敗 error=Supabase環境変数未設定")
+        return None
+
     client = _get_client()
     if not client:
+        logger.error("添削履歴保存失敗 error=Supabaseクライアント未初期化")
         return None
+
     payload = {
         "staff_name": staff_name or "（未入力）",
-        "audio_file_name": audio_file_name or "recording.m4a",
+        "audio_file_name": file_name,
         "transcript": transcript,
         "feedback": feedback,
     }
     try:
-        response = client.table("feedback_history").insert(payload).execute()
+        response = (
+            client.table("feedback_history")
+            .insert(payload)
+            .select("id")
+            .execute()
+        )
         rows = response.data or []
-        record_id = rows[0]["id"] if rows else None
-        if record_id:
-            logger.info("添削履歴を保存 id=%s staff=%s", record_id, staff_name)
+        if not rows or not rows[0].get("id"):
+            logger.error(
+                "添削履歴保存失敗 error=insert応答にidなし（RLSまたはAPIキー種別を確認）"
+            )
+            return None
+        record_id = str(rows[0]["id"])
+        logger.info("添削履歴保存成功 id=%s", record_id)
         return record_id
     except Exception as exc:
-        logger.error("添削履歴の保存に失敗: %s", exc)
+        logger.error("添削履歴保存失敗 error=%s", exc)
         return None
 
 
@@ -125,7 +165,7 @@ def list_feedback_history(*, limit: int = 100, offset: int = 0) -> list[Feedback
         )
         return [FeedbackHistoryItem.model_validate(row) for row in (response.data or [])]
     except Exception as exc:
-        logger.error("添削履歴の取得に失敗: %s", exc)
+        logger.error("添削履歴一覧取得失敗 error=%s", exc)
         return []
 
 

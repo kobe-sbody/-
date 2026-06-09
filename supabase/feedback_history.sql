@@ -16,5 +16,6 @@ create index if not exists feedback_history_created_at_idx
 create index if not exists feedback_history_staff_name_idx
   on public.feedback_history (staff_name);
 
--- 将来の成長分析用に拡張しやすいよう、RLSはサービスロール経由のみ想定
-alter table public.feedback_history enable row level security;
+-- サーバー（service_role）からのみアクセスする想定。
+-- RLS を有効にすると anon キーでは保存・取得できないため、初期設定では無効化。
+alter table public.feedback_history disable row level security;

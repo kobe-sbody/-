@@ -155,14 +155,15 @@ def run_pipeline(
         (report_dir / f"{report_id}.line.txt").write_text(result.line_text, encoding="utf-8")
         logger.info("[job:%s] レポート保存完了 report_id=%s", job_id, report_id)
 
-        history_id = save_feedback_history(
-            staff_name=staff_name,
-            audio_file_name=audio_file_name or audio_path.name,
-            transcript=transcript,
-            feedback=result.staff_feedback,
-        )
-        if history_id:
-            logger.info("[job:%s] 添削履歴保存完了 history_id=%s", job_id, history_id)
+        try:
+            save_feedback_history(
+                staff_name=staff_name,
+                audio_file_name=audio_file_name or audio_path.name,
+                transcript=transcript,
+                feedback=result.staff_feedback,
+            )
+        except Exception as exc:
+            logger.error("添削履歴保存失敗 error=%s", exc)
 
         jobs.update(
             job_id,
