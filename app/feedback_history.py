@@ -23,6 +23,29 @@ def _read_env(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
+def _normalize_supabase_url(url: str) -> str:
+    """supabase-py 用に URL を正規化する。
+
+    末尾スラッシュや /rest/v1 付きだと PGRST125 になる（GitHub supabase-py#959）。
+    """
+    normalized = url.strip().rstrip("/")
+    if normalized.endswith("/rest/v1"):
+        normalized = normalized[: -len("/rest/v1")].rstrip("/")
+    return normalized
+
+
+def _supabase_url() -> str:
+    raw = _read_env(ENV_SUPABASE_URL)
+    return _normalize_supabase_url(raw) if raw else ""
+
+
+def _supabase_url_host() -> str:
+    url = _supabase_url()
+    if not url:
+        return ""
+    return url.replace("https://", "").replace("http://", "").split("/")[0]
+
+
 def _env_status(name: str) -> str:
     """環境変数の有無を OK / 空 / 未設定 で返す（値は出さない）。"""
     if name not in os.environ:
@@ -58,6 +81,19 @@ def log_env_diagnostics() -> None:
     diag = get_env_diagnostics()
     logger.info("%s: %s", ENV_SUPABASE_URL, diag[ENV_SUPABASE_URL])
     logger.info("%s: %s", ENV_SUPABASE_SERVICE_ROLE_KEY, diag[ENV_SUPABASE_SERVICE_ROLE_KEY])
+    raw_url = _read_env(ENV_SUPABASE_URL)
+    normalized_url = _supabase_url()
+    if raw_url and normalized_url != raw_url.rstrip("/"):
+        logger.warning(
+            "SUPABASE_URLの形式を自動補正しました（末尾の/ や /rest/v1 は不要です）"
+        )
+    host = _supabase_url_host()
+    if host:
+        logger.info("SUPABASE_URL_HOST: %s", host)
+        if ".supabase.co" not in host:
+            logger.warning(
+                "SUPABASE_URL_HOST が想定外です。Project URL は https://xxxx.supabase.co 形式にしてください"
+            )
     key = _get_supabase_key()
     if key:
         role = _jwt_role(key)
@@ -75,7 +111,7 @@ def log_env_diagnostics() -> None:
 
 
 def is_configured() -> bool:
-    return bool(_read_env(ENV_SUPABASE_URL) and _get_supabase_key())
+    return bool(_supabase_url() and _get_supabase_key())
 
 
 def _get_supabase_key() -> str:
@@ -87,7 +123,7 @@ def _get_client():
     if _client_checked:
         return _client
     _client_checked = True
-    url = _read_env(ENV_SUPABASE_URL)
+    url = _supabase_url()
     key = _get_supabase_key()
     if not url or not key:
         logger.info("Supabase未設定 — 添削履歴の保存・閲覧は無効")
