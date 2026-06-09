@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>添削履歴 - Studio Coach</title>
-  <link rel="stylesheet" href="/static/style.css?v=6">
+  <link rel="stylesheet" href="/static/style.css?v=7">
 </head>
 <body class="app-page history-page">
   <div class="app-shell">
@@ -23,12 +23,52 @@
           <p>履歴の保存・閲覧には <code>SUPABASE_URL</code> と <code>SUPABASE_SERVICE_ROLE_KEY</code> の設定が必要です。</p>
           <p class="hint">テーブル作成: <code>supabase/feedback_history.sql</code> を Supabase SQL Editor で実行してください。</p>
         </section>
-        {% elif not items %}
+        {% elif stats.total == 0 %}
         <section class="card muted">
           <p>まだ添削履歴がありません。録音をアップロードすると、ここに表示されます。</p>
         </section>
         {% else %}
+        <section class="card history-stats-card">
+          <h2>集計</h2>
+          <p class="history-stats-summary">
+            全体：<strong>{{ stats.total }}件</strong>
+            {% for sc in stats.staff_counts %}
+            ・{{ sc.staff_name }}：<strong>{{ sc.count }}件</strong>
+            {% endfor %}
+          </p>
+        </section>
+
+        <section class="card history-filter-card">
+          <h2>スタッフで絞り込み</h2>
+          <div class="history-filter-list">
+            <a
+              href="{{ history_filter_href() }}"
+              class="history-filter-chip{% if not selected_staff %} is-active{% endif %}"
+            >すべて{% if not selected_staff %}（{{ stats.total }}件）{% endif %}</a>
+            {% for sc in stats.staff_counts %}
+            <a
+              href="{{ history_filter_href(sc.staff_name) }}"
+              class="history-filter-chip{% if selected_staff == sc.staff_name %} is-active{% endif %}"
+            >{{ sc.staff_name }}：{{ sc.count }}件</a>
+            {% endfor %}
+          </div>
+        </section>
+
+        {% if not items %}
+        <section class="card muted">
+          <p>
+            {% if selected_staff %}
+            {{ selected_staff }} さんの添削履歴はありません。
+            {% else %}
+            表示できる履歴がありません。
+            {% endif %}
+          </p>
+        </section>
+        {% else %}
         <section class="card history-list-card">
+          {% if selected_staff %}
+          <p class="history-list-heading">{{ selected_staff }} さんの履歴（{{ filtered_count }}件）</p>
+          {% endif %}
           <ul class="history-list">
             {% for item in items %}
             <li>
@@ -40,6 +80,7 @@
             {% endfor %}
           </ul>
         </section>
+        {% endif %}
         {% endif %}
       </main>
     </div>

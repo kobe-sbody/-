@@ -7,9 +7,16 @@ from __future__ import annotations
 import base64
 import json
 import os
+from collections import Counter
+from urllib.parse import quote
 
 from app.logger import logger
-from app.models import FeedbackHistoryDetail, FeedbackHistoryItem
+from app.models import (
+    FeedbackHistoryDetail,
+    FeedbackHistoryItem,
+    FeedbackHistoryStats,
+    StaffHistoryCount,
+)
 
 _client = None
 _client_checked = False
@@ -186,19 +193,59 @@ def save_feedback_history(
         return None
 
 
-def list_feedback_history(*, limit: int = 100, offset: int = 0) -> list[FeedbackHistoryItem]:
+def history_filter_href(staff_name: str | None = None) -> str:
+    if not staff_name:
+        return "/history"
+    return f"/history?staff={quote(staff_name)}"
+
+
+def get_feedback_history_stats() -> FeedbackHistoryStats:
+    """全体件数とスタッフ別件数を返す。"""
+    client = _get_client()
+    if not client:
+        return FeedbackHistoryStats(total=0, staff_counts=[])
+    try:
+        response = (
+            client.table("feedback_history")
+            .select("staff_name")
+            .execute()
+        )
+        rows = response.data or []
+        counter = Counter(row.get("staff_name") or "（未入力）" for row in rows)
+        staff_counts = [
+            StaffHistoryCount(staff_name=name, count=count)
+            for name, count in sorted(counter.items(), key=lambda x: (-x[1], x[0]))
+        ]
+        return FeedbackHistoryStats(total=len(rows), staff_counts=staff_counts)
+    except Exception as exc:
+        logger.error("添削履歴集計取得失敗 error=%s", exc)
+        return FeedbackHistoryStats(total=0, staff_counts=[])
+
+
+def list_distinct_staff_names() -> list[str]:
+    stats = get_feedback_history_stats()
+    return [item.staff_name for item in stats.staff_counts]
+
+
+def list_feedback_history(
+    *,
+    staff_name: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[FeedbackHistoryItem]:
     client = _get_client()
     if not client:
         return []
     try:
         end = max(offset, offset + limit - 1)
-        response = (
+        query = (
             client.table("feedback_history")
             .select("id, created_at, staff_name")
             .order("created_at", desc=True)
-            .range(offset, end)
-            .execute()
         )
+        if staff_name:
+            query = query.eq("staff_name", staff_name)
+        response = query.range(offset, end).execute()
         return [FeedbackHistoryItem.model_validate(row) for row in (response.data or [])]
     except Exception as exc:
         logger.error("添削履歴一覧取得失敗 error=%s", exc)

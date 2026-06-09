@@ -150,6 +150,61 @@ body {
   padding: 8px 20px;
 }
 
+.history-stats-card h2,
+.history-filter-card h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.history-stats-summary {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.8;
+}
+
+.history-stats-summary strong {
+  color: var(--accent);
+}
+
+.history-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-filter-chip {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #faf8f5;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.history-filter-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.history-filter-chip.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.history-list-heading {
+  margin: 0 0 8px;
+  padding: 8px 4px 0;
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .hero, .report-header {
   margin-bottom: 24px;
 }

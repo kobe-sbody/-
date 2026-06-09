@@ -66,6 +66,16 @@ class FeedbackHistoryDetail(BaseModel):
     feedback: str = ""
 
 
+class StaffHistoryCount(BaseModel):
+    staff_name: str
+    count: int
+
+
+class FeedbackHistoryStats(BaseModel):
+    total: int
+    staff_counts: list[StaffHistoryCount] = Field(default_factory=list)
+
+
 class EvaluationResult(BaseModel):
     staff_name: str = "（未入力）"
     session_date: str = "（未入力）"

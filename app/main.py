@@ -4,6 +4,7 @@ import os
 import socket
 from datetime import date
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -15,6 +16,8 @@ from fastapi.templating import Jinja2Templates
 from app.feedback_history import (
     format_created_date,
     get_feedback_history,
+    get_feedback_history_stats,
+    history_filter_href,
     is_configured as supabase_configured,
     list_feedback_history,
     log_env_diagnostics,
@@ -100,16 +103,28 @@ async def index(request: Request):
 
 
 @app.get("/history", response_class=HTMLResponse)
-async def history_list(request: Request):
-    items = list_feedback_history()
+async def history_list(request: Request, staff: Optional[str] = None):
+    selected_staff = staff.strip() if staff and staff.strip() else None
+    stats = get_feedback_history_stats()
+    items = list_feedback_history(staff_name=selected_staff)
+    filtered_count = stats.total
+    if selected_staff:
+        filtered_count = next(
+            (sc.count for sc in stats.staff_counts if sc.staff_name == selected_staff),
+            0,
+        )
     return templates.TemplateResponse(
         "history.html",
         {
             "request": request,
             "items": items,
+            "stats": stats,
+            "selected_staff": selected_staff,
+            "filtered_count": filtered_count,
             "active_nav": "history",
             "history_enabled": supabase_configured(),
             "format_date": format_created_date,
+            "history_filter_href": history_filter_href,
         },
     )
 
