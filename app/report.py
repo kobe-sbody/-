@@ -4,6 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from app.feedback_history import is_configured as supabase_configured
 from app.models import EvaluationResult, ItemEvaluation
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,4 +50,6 @@ def render_report(result: EvaluationResult, report_id: str = "") -> str:
         verdict_class=VERDICT_CLASS,
         categories=_group_by_category(result.item_evaluations),
         weakest=weakest,
+        active_nav="upload",
+        history_enabled=supabase_configured(),
     )

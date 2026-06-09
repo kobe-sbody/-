@@ -10,6 +10,7 @@ from threading import Lock
 from typing import Any
 
 from app.counseling import evaluate_counseling
+from app.feedback_history import save_feedback_history
 from app.logger import logger
 from app.report import render_report
 from app.transcribe import prepare_audio, transcribe_audio
@@ -117,6 +118,7 @@ def run_pipeline(
     staff_name: str,
     session_date: str,
     report_dir: Path,
+    audio_file_name: str = "",
 ) -> None:
     temp_path = audio_path
     ready_path = audio_path
@@ -152,6 +154,15 @@ def run_pipeline(
         (report_dir / f"{report_id}-transcript.txt").write_text(transcript, encoding="utf-8")
         (report_dir / f"{report_id}.line.txt").write_text(result.line_text, encoding="utf-8")
         logger.info("[job:%s] レポート保存完了 report_id=%s", job_id, report_id)
+
+        history_id = save_feedback_history(
+            staff_name=staff_name,
+            audio_file_name=audio_file_name or audio_path.name,
+            transcript=transcript,
+            feedback=result.staff_feedback,
+        )
+        if history_id:
+            logger.info("[job:%s] 添削履歴保存完了 history_id=%s", job_id, history_id)
 
         jobs.update(
             job_id,

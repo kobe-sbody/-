@@ -51,6 +51,21 @@ class FeedbackSection(BaseModel):
     quotes: list[QuoteItem] = Field(default_factory=list)
 
 
+class FeedbackHistoryItem(BaseModel):
+    id: str
+    created_at: str
+    staff_name: str
+
+
+class FeedbackHistoryDetail(BaseModel):
+    id: str
+    created_at: str
+    staff_name: str
+    audio_file_name: str = ""
+    transcript: str = ""
+    feedback: str = ""
+
+
 class EvaluationResult(BaseModel):
     staff_name: str = "（未入力）"
     session_date: str = "（未入力）"

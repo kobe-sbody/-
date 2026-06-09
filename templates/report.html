@@ -4,16 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>育成レポート - {{ result.staff_name }}</title>
-  <link rel="stylesheet" href="/static/style.css?v=5">
+  <link rel="stylesheet" href="/static/style.css?v=6">
 </head>
-<body class="report-page">
-  <header class="report-topbar">
-    <div class="report-topbar-inner">
-      <a href="/" class="back-demo">← デモトップ</a>
-      <span class="brand-mark small">Studio Coach</span>
-    </div>
-  </header>
-
+<body class="report-page app-page">
+  <div class="app-shell">
+    {% include "_sidebar.html" %}
+    <div class="app-main">
   <main class="container report">
     <section class="manager-hero card">
       <div class="manager-hero-top">
@@ -93,8 +89,8 @@
 
     {% if result.improvement_points %}
     <section class="card improve-hero">
-      <h2>次に伸ばすポイント（まとめ）</h2>
-      <p class="section-desc">スタッフが落ち込まないよう、前向きな表現でまとめています</p>
+      <h2>改善点（まとめ）</h2>
+      <p class="section-desc">結論→理由→具体例を自然な文章にまとめ、最大2件です</p>
       {% for ip in result.improvement_points %}
       <div class="improve-card">
         <h3>{{ ip.title }}</h3>
@@ -156,8 +152,10 @@
       <pre>{{ result.transcript }}</pre>
     </details>
   </main>
+    </div>
+  </div>
 
-  <textarea id="line-text-source" hidden>{{ result.line_text }}</textarea>
+  <textarea id="line-text-source" hidden>{{ result.staff_feedback }}</textarea>
   <script>
     document.getElementById('copy-line-btn')?.addEventListener('click', async () => {
       const source = document.getElementById('line-text-source');

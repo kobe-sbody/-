@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>{{ record.staff_name }} - 添削履歴</title>
+  <link rel="stylesheet" href="/static/style.css?v=6">
+</head>
+<body class="app-page history-detail-page">
+  <div class="app-shell">
+    {% include "_sidebar.html" %}
+    <div class="app-main">
+      <main class="container">
+        <section class="page-hero">
+          <a href="/history" class="back-link">← 添削履歴一覧</a>
+          <h1>{{ record.staff_name }}</h1>
+          <p class="lead">
+            {{ format_date(record.created_at) }}
+            {% if record.audio_file_name %}
+            ・ {{ record.audio_file_name }}
+            {% endif %}
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>AI添削結果</h2>
+          <div class="line-preview history-feedback">{{ record.feedback }}</div>
+        </section>
+
+        <section class="card transcript-box">
+          <h2>文字起こし</h2>
+          <pre>{{ record.transcript }}</pre>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

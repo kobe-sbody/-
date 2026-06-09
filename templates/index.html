@@ -4,16 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>カウンセリング育成サポート</title>
-  <link rel="stylesheet" href="/static/style.css?v=5">
+  <link rel="stylesheet" href="/static/style.css?v=6">
 </head>
-<body class="demo-page">
-  <header class="demo-header">
-    <div class="demo-header-inner">
-      <span class="brand-mark">Studio Coach</span>
-      <span class="brand-tag">デモ版</span>
-    </div>
-  </header>
-
+<body class="demo-page app-page">
+  <div class="app-shell">
+    {% include "_sidebar.html" %}
+    <div class="app-main">
   <main class="container">
     <section class="demo-hero">
       <p class="eyebrow">ピラティススタジオ向け 教育・品質管理</p>
@@ -87,6 +83,8 @@
       </div>
     </section>
   </main>
+    </div>
+  </div>
 
   <div class="processing-overlay" id="processing-overlay" hidden>
     <div class="processing-card">

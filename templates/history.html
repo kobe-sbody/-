@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>添削履歴 - Studio Coach</title>
+  <link rel="stylesheet" href="/static/style.css?v=6">
+</head>
+<body class="app-page history-page">
+  <div class="app-shell">
+    {% include "_sidebar.html" %}
+    <div class="app-main">
+      <main class="container">
+        <section class="page-hero">
+          <p class="eyebrow">成長履歴</p>
+          <h1>添削履歴</h1>
+          <p class="lead">スタッフごとの添削結果を蓄積しています。</p>
+        </section>
+
+        {% if not history_enabled %}
+        <section class="alert-card card">
+          <strong>Supabase未設定</strong>
+          <p>履歴の保存・閲覧には <code>SUPABASE_URL</code> と <code>SUPABASE_SERVICE_ROLE_KEY</code> の設定が必要です。</p>
+          <p class="hint">テーブル作成: <code>supabase/feedback_history.sql</code> を Supabase SQL Editor で実行してください。</p>
+        </section>
+        {% elif not items %}
+        <section class="card muted">
+          <p>まだ添削履歴がありません。録音をアップロードすると、ここに表示されます。</p>
+        </section>
+        {% else %}
+        <section class="card history-list-card">
+          <ul class="history-list">
+            {% for item in items %}
+            <li>
+              <a href="/history/{{ item.id }}" class="history-list-item">
+                <span class="history-date">{{ format_date(item.created_at) }}</span>
+                <span class="history-staff">{{ item.staff_name }}</span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </section>
+        {% endif %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

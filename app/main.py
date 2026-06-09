@@ -12,6 +12,12 @@ from starlette.requests import Request as StarletteRequest
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.feedback_history import (
+    format_created_date,
+    get_feedback_history,
+    is_configured as supabase_configured,
+    list_feedback_history,
+)
 from app.jobs import JobStep, jobs, run_pipeline
 from app.logger import logger
 from app.paths import REPORT_DIR, ROOT, UPLOAD_DIR, ensure_data_dirs
@@ -60,6 +66,10 @@ async def startup() -> None:
         logger.info("=== Mac === http://127.0.0.1:%s", port)
     if env == "Render":
         logger.info("=== 注意 === 音声・レポートは /tmp 保存（再起動で消えます）")
+    logger.info(
+        "=== Supabase === %s",
+        "OK（添削履歴あり）" if supabase_configured() else "未設定（履歴保存なし）",
+    )
 
 
 def _get_local_ip() -> str:
@@ -76,7 +86,45 @@ async def index(request: Request):
     has_api_key = bool(os.getenv("OPENAI_API_KEY"))
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "today": date.today().isoformat(), "has_api_key": has_api_key},
+        {
+            "request": request,
+            "today": date.today().isoformat(),
+            "has_api_key": has_api_key,
+            "active_nav": "upload",
+            "history_enabled": supabase_configured(),
+        },
+    )
+
+
+@app.get("/history", response_class=HTMLResponse)
+async def history_list(request: Request):
+    items = list_feedback_history()
+    return templates.TemplateResponse(
+        "history.html",
+        {
+            "request": request,
+            "items": items,
+            "active_nav": "history",
+            "history_enabled": supabase_configured(),
+            "format_date": format_created_date,
+        },
+    )
+
+
+@app.get("/history/{record_id}", response_class=HTMLResponse)
+async def history_detail(request: Request, record_id: str):
+    record = get_feedback_history(record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="履歴が見つかりません")
+    return templates.TemplateResponse(
+        "history_detail.html",
+        {
+            "request": request,
+            "record": record,
+            "active_nav": "history",
+            "history_enabled": supabase_configured(),
+            "format_date": format_created_date,
+        },
     )
 
 
@@ -148,6 +196,7 @@ async def api_evaluate(
         job.staff_name,
         session_date,
         REPORT_DIR,
+        filename,
     )
 
     return {
