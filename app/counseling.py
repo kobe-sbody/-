@@ -84,7 +84,7 @@ FEEDBACK_TONE_RULES = """
 ・名前は記載しない
 ・「今日のカウンセリング確認しました」等は使わない
 ・良かった点を先に、自然な文章で伝える
-・改善点は「改善点は2つです。」のように自然な一文で導入（件数に合わせる）
+・改善点は「最優先で改善したいこと」と「さらに良くするなら」の2階層で伝える
 ・番号見出し（①改善点 など）は禁止
 ・改善点→重要性→お客様心理→質問の流れと狙い→会話例を1つの自然な段落にまとめる
 ・箇条書き・絵文字・👍🌱などの見出しは禁止
@@ -1599,11 +1599,23 @@ def _max_improvement_count() -> int:
     return int(load_feedback_rules().get("max_improvement_points", 2))
 
 
+PRIMARY_RANK_ORDER = ("S", "A", "B")
+B_RANK_SUPPLEMENTAL_IDS = {"B-01", "B-02", "B-03", "B-04", "B-05"}
+
+
+def _item_rank(item_id: str) -> str:
+    if "-" in item_id:
+        prefix = item_id.split("-", 1)[0]
+        if prefix in {"S", "A", "B", "Q"}:
+            return prefix
+    return "legacy"
+
+
 IMPROVEMENT_PRIORITY = {
     # 第0階層: 成約に直結する最重要項目
-    "S-01": 1,
+    "S-03": 1,
+    "S-01": 2,
     # Sランク
-    "S-03": 10,
     "S-02": 11,
     "S-04": 12,
     "S-05": 13,
@@ -1653,11 +1665,15 @@ def _improvement_sort_key(item: ItemEvaluation) -> tuple[int, int, str]:
 def _build_improvement_points(
     items: list[ItemEvaluation], overall_score: int
 ) -> list[FeedbackSection]:
-    ordered = sorted(
-        [i for i in items if i.verdict != "できている"],
-        key=_improvement_sort_key,
+    candidates = [i for i in items if i.verdict != "できている"]
+    target_rank = next(
+        (rank for rank in PRIMARY_RANK_ORDER if any(_item_rank(i.id) == rank for i in candidates)),
+        "",
     )
-    limit = _max_improvement_count()
+    if target_rank:
+        candidates = [i for i in candidates if _item_rank(i.id) == target_rank]
+    ordered = sorted(candidates, key=_improvement_sort_key)
+    limit = 1 if ordered and ordered[0].id == "S-03" else _max_improvement_count()
     sections: list[FeedbackSection] = []
     for item in ordered[:limit]:
         sections.append(
@@ -1675,6 +1691,46 @@ def _build_improvement_points(
                 title="さらに伸ばせるポイント",
                 body=_format_improvement_body(growth),
                 quotes=growth.quotes,
+            )
+        )
+    return sections
+
+
+def _build_supplemental_points(
+    items: list[ItemEvaluation],
+    primary_points: list[FeedbackSection],
+) -> list[FeedbackSection]:
+    primary_titles = {section.title for section in primary_points}
+    primary_rank = ""
+    for rank in PRIMARY_RANK_ORDER:
+        if any(item.label in primary_titles and _item_rank(item.id) == rank for item in items):
+            primary_rank = rank
+            break
+    # BランクはS/Aの主課題がある時だけ補足扱いにする。S/Aが達成済みならBも主改善点として扱う。
+    if primary_rank not in {"S", "A"}:
+        return []
+
+    sections: list[FeedbackSection] = []
+    b_items = sorted(
+        [
+            item
+            for item in items
+            if item.id in B_RANK_SUPPLEMENTAL_IDS
+            and item.verdict != "できている"
+            and item.label not in primary_titles
+        ],
+        key=_improvement_sort_key,
+    )
+    for item in b_items[:3]:
+        sections.append(
+            FeedbackSection(
+                title=item.label,
+                body=(
+                    "強いて言うなら、ここも確認できるとさらに良くなります。"
+                    "ただし今回の録音では主訴の深掘りが優先なので、大きな問題として扱う必要はありません。"
+                    f"{item.next_action or item.comment}"
+                ),
+                quotes=item.quotes,
             )
         )
     return sections
@@ -1741,6 +1797,7 @@ def _assemble_staff_feedback(
     staff_name: str,
     good_points: list[FeedbackSection],
     improvement_points: list[FeedbackSection],
+    supplemental_points: list[FeedbackSection] | None = None,
 ) -> str:
     """固定の冒頭・締めでスタッフ向けLINE文面を組み立てる。"""
     rules = load_feedback_rules()
@@ -1758,15 +1815,26 @@ def _assemble_staff_feedback(
     if good_points:
         lines.append("")
 
+    supplemental_points = supplemental_points or []
     limit = _max_improvement_count()
     selected = improvement_points[:limit]
     if selected:
-        intro = rules.get("improvement_intro", "改善点は{count}つです。").format(count=len(selected))
-        lines.append(intro)
+        if len(selected) == 1:
+            lines.append("最優先で改善したいことです。")
+        else:
+            lines.append(f"最優先で改善したいことは{len(selected)}つです。")
         lines.append("")
         for ip in selected:
             lines.append(_normalize_improvement_body(ip.body, ip.title))
             lines.append("")
+
+    if supplemental_points:
+        lines.append("さらに良くするなら、強いて言うと以下も確認できると良いです。")
+        lines.append("ただし今回の録音では大きな問題ではありません。")
+        lines.append("")
+        for point in supplemental_points[:3]:
+            lines.append(f"・{point.title}")
+        lines.append("")
 
     while lines and lines[-1] == "":
         lines.pop()
@@ -1920,20 +1988,23 @@ def evaluate_counseling(
         assessment = _fallback_assessment(items, overall_score, staff_name)
     if not good_points:
         good_points = _build_good_points(items)
-    if improvement_points and all(item.verdict == "できている" for item in items):
+    if all(item.verdict == "できている" for item in items):
         improvement_points = []
-    if not improvement_points:
+    else:
+        # 改善点はLLMの並びではなく、最終判定済みのS/A/B優先順位から選び直す。
         improvement_points = _build_improvement_points(items, overall_score)
     improvement_points = improvement_points[: _max_improvement_count()]
+    supplemental_points = _build_supplemental_points(items, improvement_points)
     if not next_focus:
         next_focus = _build_next_focus(items)
-    staff_feedback = _assemble_staff_feedback(staff_name, good_points, improvement_points)
+    staff_feedback = _assemble_staff_feedback(staff_name, good_points, improvement_points, supplemental_points)
     pm_review_before = staff_feedback
     pm_review = review_staff_feedback(
         transcript=transcript,
         staff_feedback=staff_feedback,
         good_points=good_points,
         improvement_points=improvement_points,
+        supplemental_points=supplemental_points,
         item_evaluations=items,
         use_llm=use_llm,
         mode="safe_format" if low_quality else "normal",

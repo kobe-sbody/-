@@ -4,148 +4,176 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>育成レポート - {{ result.staff_name }}</title>
-  <link rel="stylesheet" href="/static/style.css?v=6">
+  <link rel="stylesheet" href="/static/style.css?v=7">
 </head>
 <body class="report-page app-page">
   <div class="app-shell">
     {% include "_sidebar.html" %}
     <div class="app-main">
-  <main class="container report">
-    <section class="manager-hero card">
+  <main class="container report training-report">
+    <section class="manager-hero card report-summary-section">
       <div class="manager-hero-top">
         <div>
           <p class="eyebrow">カウンセリング育成レポート</p>
           <h1>{{ result.staff_name }} <span class="sub">/ {{ result.session_date }}</span></h1>
         </div>
-        <div class="score-badge {{ label_class }}">
-          <span class="score-badge-num">{{ result.overall_score }}</span>
-          <span class="score-badge-label">{{ result.overall_label }}</span>
+        <div class="hero-actions">
+          <button type="button" class="btn primary copy-line-top" data-copy-line>LINE文をコピー</button>
+          <div class="score-badge {{ label_class }}">
+            <span class="score-badge-num">{{ result.overall_score }}</span>
+            <span class="score-badge-label">{{ result.overall_label }}</span>
+          </div>
         </div>
       </div>
       <p class="manager-summary">{{ result.manager_summary }}</p>
-    </section>
 
-    <section class="card assessment-card">
-      <h2>総合評価</h2>
-      <div class="assessment-grid">
-        <div class="assessment-block">
-          <h3>今のスタッフの状態</h3>
-          <p>{{ result.overall_assessment.staff_status or result.overall_comment }}</p>
+      <div class="report-score-grid" aria-label="上部サマリー">
+        {% for card in score_cards %}
+        <div class="report-score-card score-kind-{{ card.kind }}">
+          <span class="report-score-label">{{ card.label }}</span>
+          <strong class="report-score-num">{{ card.score }}</strong>
+          <span class="report-score-note">{{ card.note }}</span>
         </div>
-        <div class="assessment-block highlight-warn">
-          <h3>一番の課題</h3>
-          <p>{{ result.overall_assessment.top_issue }}</p>
-        </div>
-        <div class="assessment-block highlight-action">
-          <h3>次回最優先で改善すること</h3>
-          <p>{{ result.overall_assessment.priority_improvement }}</p>
-        </div>
+        {% endfor %}
+      </div>
+
+      <div class="brief-summary-box">
+        <p class="eyebrow">Summary</p>
+        <p>{{ brief_summary }}</p>
       </div>
     </section>
 
-    <section class="line-cta card">
+    <section class="card report-concerns-section">
+      <div class="section-heading-row">
+        <div>
+          <p class="eyebrow">Primary Concerns</p>
+          <h2>主訴候補</h2>
+        </div>
+        <p class="section-desc">文字起こしから抽出した、お客様が特に気にしている部位です</p>
+      </div>
+      {% if primary_concerns %}
+      <div class="concern-tags">
+        {% for concern in primary_concerns %}
+        <span class="concern-tag">{{ concern }}</span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-note">主訴候補は抽出されませんでした。</p>
+      {% endif %}
+    </section>
+
+    <section class="card priority-issue-card">
+      <p class="eyebrow">Top Priority</p>
+      <h2>今回の最重要課題</h2>
+      <div class="priority-issue-grid">
+        <div class="priority-action-panel">
+          <span class="priority-label">今回の最重要課題</span>
+          <h3>{{ primary_issue.action }}</h3>
+        </div>
+        <div class="priority-detail-panel">
+          <h3>なぜ重要か</h3>
+          <p>{{ primary_issue.why }}</p>
+        </div>
+        {% if primary_issue.next_steps %}
+        <div class="priority-detail-panel">
+          <h3>次回やること</h3>
+          <ul class="next-step-list">
+            {% for step in primary_issue.next_steps %}
+            <li>{{ step }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+      {% if primary_issue.questions %}
+      <div class="question-example-box">
+        <h3>次回使う質問例</h3>
+        <ul>
+          {% for question in primary_issue.questions %}
+          <li>「{{ question }}」</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="card supplemental-section">
+      <p class="eyebrow">Optional Improvements</p>
+      <h2>さらに良くするなら</h2>
+      <p class="section-desc">大きな問題ではありませんが、余裕があれば確認できるとさらに良い項目です。</p>
+      {% if supplemental_improvements %}
+      <div class="supplemental-grid">
+        {% for item in supplemental_improvements %}
+        <div class="supplemental-card">
+          <span class="verdict-badge verdict-{{ verdict_class[item.verdict] }}">{{ item.verdict }}</span>
+          <h3>{{ item.title }}</h3>
+          {% if item.action %}<p>{{ item.action }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-note">補足改善として強調する項目はありません。</p>
+      {% endif %}
+    </section>
+
+    <section class="card rank-check-section">
+      <p class="eyebrow">Checklist</p>
+      <h2>S/A/Bランク別チェック表</h2>
+      {% for section in rank_sections %}
+      <div class="rank-block rank-{{ section.rank|lower }}">
+        <div class="rank-block-head">
+          <div>
+            <h3>{{ section.name }}</h3>
+            <p>{{ section.description }}</p>
+          </div>
+          <div class="rank-score-mini">
+            <strong>{{ section.score }}</strong>
+            <span>{{ section.ok_count }}/{{ section.total_count }}項目</span>
+          </div>
+        </div>
+        <div class="rank-table" role="table" aria-label="{{ section.name }}の評価項目">
+          <div class="rank-table-row rank-table-head" role="row">
+            <div role="columnheader">項目名</div>
+            <div role="columnheader">判定</div>
+            <div role="columnheader">根拠引用</div>
+            <div role="columnheader">次回アクション</div>
+          </div>
+          {% for item in section.evaluations %}
+          <div class="rank-table-row" role="row">
+            <div class="rank-item-title" role="cell" data-label="項目名">{{ item.label }}</div>
+            <div role="cell" data-label="判定"><span class="verdict-badge verdict-{{ verdict_class[item.verdict] }}">{{ item.verdict }}</span></div>
+            <div class="rank-quotes" role="cell" data-label="根拠引用">
+              {% if item.quotes %}
+                {% for q in item.quotes[:2] %}
+                <blockquote class="quote compact">{% if q.timestamp %}<span class="quote-ts">{{ q.timestamp }}</span>{% endif %}「{{ q.text }}」</blockquote>
+                {% endfor %}
+              {% else %}
+                <span class="muted-text">該当引用なし</span>
+              {% endif %}
+            </div>
+            <div class="rank-action" role="cell" data-label="次回アクション">{{ item.next_action or "次回も継続して確認" }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section class="line-cta card line-report-section">
       <div class="line-cta-head">
-        <h2>スタッフへ送るフィードバック</h2>
+        <p class="eyebrow">LINE Message</p>
+        <h2>LINE送信用フィードバック</h2>
         <p>以下の文面をLINEにそのまま貼り付けて共有できます</p>
       </div>
       <div class="line-preview">{{ result.staff_feedback }}</div>
       <div class="line-actions-row">
-        <button type="button" class="btn primary" id="copy-line-btn">LINE用テキストをコピー</button>
+        <button type="button" class="btn primary" id="copy-line-btn" data-copy-line>LINE用テキストをコピー</button>
         {% if report_id %}
         <a class="btn ghost" href="/reports/{{ report_id }}/line.txt" download>テキストをダウンロード</a>
         {% endif %}
       </div>
       <p class="copy-status" id="copy-status"></p>
     </section>
-
-    {% for category in categories %}
-    <section class="card eval-category">
-      <h2>{{ category.name }}</h2>
-      {% for item in category.evaluations %}
-      <div class="eval-item verdict-{{ verdict_class[item.verdict] }}">
-        <div class="eval-item-head">
-          <span class="verdict-badge verdict-{{ verdict_class[item.verdict] }}">{{ item.verdict }}</span>
-          <h3>{{ item.label }}</h3>
-        </div>
-        <p class="eval-comment">{{ item.comment }}</p>
-        {% if item.quotes %}
-        <div class="eval-quotes">
-          <p class="eval-quotes-label">根拠（発言引用）</p>
-          {% for q in item.quotes %}
-          <blockquote class="quote">
-            {% if q.timestamp %}<span class="quote-ts">{{ q.timestamp }}</span>{% endif %}
-            「{{ q.text }}」
-          </blockquote>
-          {% endfor %}
-        </div>
-        {% endif %}
-        {% if item.next_action %}
-        <p class="eval-action"><strong>次回アクション:</strong> {{ item.next_action }}</p>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </section>
-    {% endfor %}
-
-    {% if result.improvement_points %}
-    <section class="card improve-hero">
-      <h2>改善点（まとめ）</h2>
-      <p class="section-desc">改善点・重要性・お客様心理・質問の流れ・会話例を自然な文章にまとめ、最大2件です</p>
-      {% for ip in result.improvement_points %}
-      <div class="improve-card">
-        <h3>{{ ip.title }}</h3>
-        <p>{{ ip.body }}</p>
-      </div>
-      {% endfor %}
-    </section>
-    {% endif %}
-
-    <section class="card">
-      <h2>カテゴリスコア</h2>
-      {% if weakest %}
-      <p class="section-desc">特にフォロー: <strong>{{ weakest.name }}</strong>（{{ weakest.score }}点）</p>
-      {% endif %}
-      <ul class="score-list">
-        {% for s in result.scores %}
-        <li class="score-row">
-          <div class="score-label">
-            <span>{{ s.name }}</span>
-            <strong>{{ s.score }}点</strong>
-          </div>
-          <div class="score-bar-track">
-            <div class="score-bar-fill" style="width: {{ s.score }}%"></div>
-          </div>
-          <p class="score-comment">{{ s.comment }}</p>
-        </li>
-        {% endfor %}
-      </ul>
-    </section>
-
-    {% if result.good_points %}
-    <section class="card good-section">
-      <h2>良かった点</h2>
-      {% for gp in result.good_points %}
-      <div class="feedback-block good">
-        <h3>{{ gp.title }}</h3>
-        <p>{{ gp.body }}</p>
-        {% for q in gp.quotes %}
-        <blockquote class="quote">{% if q.timestamp %}<span class="quote-ts">{{ q.timestamp }}</span>{% endif %}「{{ q.text }}」</blockquote>
-        {% endfor %}
-      </div>
-      {% endfor %}
-    </section>
-    {% endif %}
-
-    {% if result.next_focus %}
-    <section class="card">
-      <h2>次回セッションで意識すること</h2>
-      <ul class="focus-list">
-        {% for item in result.next_focus %}
-        <li>{{ item }}</li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% endif %}
 
     <details class="card transcript-box">
       <summary>文字起こし（参照）</summary>
@@ -157,12 +185,12 @@
 
   <textarea id="line-text-source" hidden>{{ result.staff_feedback }}</textarea>
   <script>
-    document.getElementById('copy-line-btn')?.addEventListener('click', async () => {
+    const copyLineText = async () => {
       const source = document.getElementById('line-text-source');
       const text = source?.value || '';
       const status = document.getElementById('copy-status');
       const done = () => {
-        status.textContent = 'コピーしました。LINEを開いて貼り付けてください。';
+        if (status) status.textContent = 'コピーしました。LINEを開いて貼り付けてください。';
       };
       const fail = () => {
         if (source) {
@@ -172,7 +200,7 @@
           source.select();
           source.setSelectionRange(0, text.length);
         }
-        status.textContent = '長押しで「すべて選択」→「コピー」してください（iPhone Safari）。';
+        if (status) status.textContent = '長押しで「すべて選択」→「コピー」してください（iPhone Safari）。';
       };
       try {
         if (navigator.clipboard?.writeText) {
@@ -194,6 +222,9 @@
       } catch (e) {
         fail();
       }
+    };
+    document.querySelectorAll('[data-copy-line]').forEach((button) => {
+      button.addEventListener('click', copyLineText);
     });
   </script>
 </body>
